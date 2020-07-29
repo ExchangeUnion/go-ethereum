@@ -127,6 +127,7 @@ type worker struct {
 	engine      consensus.Engine
 	eth         Backend
 	chain       *core.BlockChain
+	limit       int
 
 	// Feeds
 	pendingLogsFeed event.Feed
@@ -284,7 +285,8 @@ func (w *worker) pendingBlock() *types.Block {
 }
 
 // start sets the running status as 1 and triggers new work submitting.
-func (w *worker) start() {
+func (w *worker) start(limit int) {
+	w.limit = limit
 	atomic.StoreInt32(&w.running, 1)
 	w.startCh <- struct{}{}
 }
@@ -626,6 +628,11 @@ func (w *worker) resultLoop() {
 			// Insert the block into the set of pending ones to resultLoop for confirmations
 			w.unconfirmed.Insert(block.NumberU64(), block.Hash())
 
+			w.limit = w.limit - 1
+			if w.limit < 1 {
+				log.Info("Stopping miner because target block has been reached.")
+				w.stop()
+			}
 		case <-w.exitCh:
 			return
 		}
@@ -854,7 +861,8 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 	// this will ensure we're not going off too far in the future
 	if now := time.Now().Unix(); timestamp > now+1 {
-		wait := time.Duration(timestamp-now) * time.Second
+		// wait := time.Duration(timestamp-now) * time.Second
+		wait := 1 * time.Millisecond
 		log.Info("Mining too far in the future", "wait", common.PrettyDuration(wait))
 		time.Sleep(wait)
 	}

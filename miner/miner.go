@@ -108,7 +108,7 @@ func (miner *Miner) update() {
 				atomic.StoreInt32(&miner.canStart, 1)
 				atomic.StoreInt32(&miner.shouldStart, 0)
 				if shouldStart {
-					miner.Start(miner.coinbase)
+					miner.Start(miner.coinbase, 1)
 				}
 				// stop immediately and ignore all further pending events
 				return
@@ -119,7 +119,7 @@ func (miner *Miner) update() {
 	}
 }
 
-func (miner *Miner) Start(coinbase common.Address) {
+func (miner *Miner) Start(coinbase common.Address, limit int) {
 	atomic.StoreInt32(&miner.shouldStart, 1)
 	miner.SetEtherbase(coinbase)
 
@@ -127,7 +127,7 @@ func (miner *Miner) Start(coinbase common.Address) {
 		log.Info("Network syncing, will start miner afterwards")
 		return
 	}
-	miner.worker.start()
+	miner.worker.start(limit)
 }
 
 func (miner *Miner) Stop() {
